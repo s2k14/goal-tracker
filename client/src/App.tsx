@@ -6,6 +6,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import AddGoal from "@/pages/add-goal";
 import GoalDetails from "@/pages/goal-details";
+import Analytics from "@/pages/analytics";
+import { NavigationMenu } from "@/components/navigation-menu";
 
 function Router() {
   return (
@@ -13,6 +15,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/goals/new" component={AddGoal} />
       <Route path="/goals/:id" component={GoalDetails} />
+      <Route path="/analytics" component={Analytics} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -21,6 +24,7 @@ function Router() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <NavigationMenu />
       <Router />
       <Toaster />
     </QueryClientProvider>
