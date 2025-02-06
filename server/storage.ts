@@ -1,4 +1,7 @@
 import { type Goal, type InsertGoal, type Task, type InsertTask } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, gte, lte } from "drizzle-orm";
+import { goals, tasks } from "@shared/schema";
 
 export interface IStorage {
   createGoal(goal: InsertGoal): Promise<Goal>;
@@ -11,62 +14,47 @@ export interface IStorage {
   getTasksForDate(date: Date): Promise<Task[]>;
 }
 
-export class MemStorage implements IStorage {
-  private goals: Map<number, Goal>;
-  private tasks: Map<number, Task>;
-  private goalId: number;
-  private taskId: number;
-
-  constructor() {
-    this.goals = new Map();
-    this.tasks = new Map();
-    this.goalId = 1;
-    this.taskId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async createGoal(goal: InsertGoal): Promise<Goal> {
-    const id = this.goalId++;
-    const newGoal: Goal = { ...goal, id, completed: false };
-    this.goals.set(id, newGoal);
-    return newGoal;
+    const [created] = await db.insert(goals).values(goal).returning();
+    return created;
   }
 
   async getGoals(): Promise<Goal[]> {
-    return Array.from(this.goals.values());
+    return await db.select().from(goals);
   }
 
   async getGoal(id: number): Promise<Goal | undefined> {
-    return this.goals.get(id);
+    const [goal] = await db.select().from(goals).where(eq(goals.id, id));
+    return goal;
   }
 
   async updateGoal(id: number, goal: Partial<Goal>): Promise<Goal> {
-    const existing = this.goals.get(id);
-    if (!existing) throw new Error("Goal not found");
-    const updated = { ...existing, ...goal };
-    this.goals.set(id, updated);
+    const [updated] = await db
+      .update(goals)
+      .set(goal)
+      .where(eq(goals.id, id))
+      .returning();
+    if (!updated) throw new Error("Goal not found");
     return updated;
   }
 
   async createTask(task: InsertTask): Promise<Task> {
-    const id = this.taskId++;
-    const newTask: Task = { 
-      ...task, 
-      id,
-      completed: task.completed ?? false
-    };
-    this.tasks.set(id, newTask);
-    return newTask;
+    const [created] = await db.insert(tasks).values(task).returning();
+    return created;
   }
 
   async getTasks(goalId: number): Promise<Task[]> {
-    return Array.from(this.tasks.values()).filter(task => task.goalId === goalId);
+    return await db.select().from(tasks).where(eq(tasks.goalId, goalId));
   }
 
   async updateTask(id: number, task: Partial<Task>): Promise<Task> {
-    const existing = this.tasks.get(id);
-    if (!existing) throw new Error("Task not found");
-    const updated = { ...existing, ...task };
-    this.tasks.set(id, updated);
+    const [updated] = await db
+      .update(tasks)
+      .set(task)
+      .where(eq(tasks.id, id))
+      .returning();
+    if (!updated) throw new Error("Task not found");
     return updated;
   }
 
@@ -76,10 +64,16 @@ export class MemStorage implements IStorage {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    return Array.from(this.tasks.values()).filter(
-      task => task.date >= startOfDay && task.date <= endOfDay
-    );
+    return await db
+      .select()
+      .from(tasks)
+      .where(
+        and(
+          gte(tasks.date, startOfDay),
+          lte(tasks.date, endOfDay)
+        )
+      );
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
