@@ -19,7 +19,11 @@ export const tasks = pgTable("tasks", {
   date: timestamp("date").notNull(),
 });
 
-export const insertGoalSchema = createInsertSchema(goals).omit({ id: true, completed: true });
+// Modified schema to handle date strings from the form
+export const insertGoalSchema = createInsertSchema(goals, {
+  targetDate: z.string().transform((date) => new Date(date)),
+}).omit({ id: true, completed: true });
+
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });
 
 export type InsertGoal = z.infer<typeof insertGoalSchema>;

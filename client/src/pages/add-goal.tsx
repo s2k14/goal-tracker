@@ -22,14 +22,7 @@ export default function AddGoal() {
   const { toast } = useToast();
 
   const form = useForm<InsertGoal>({
-    resolver: zodResolver(insertGoalSchema.extend({
-      targetDate: insertGoalSchema.shape.targetDate.transform((date) => {
-        if (typeof date === 'string') {
-          return new Date(date).toISOString();
-        }
-        return date.toISOString();
-      }),
-    })),
+    resolver: zodResolver(insertGoalSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -59,18 +52,13 @@ export default function AddGoal() {
     },
   });
 
-  const onSubmit = (data: InsertGoal) => {
-    console.log('Submitting goal:', data); // Add logging
-    mutation.mutate(data);
-  };
-
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Create New Goal</h1>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="title" className="text-sm font-medium">Goal Title</label>
