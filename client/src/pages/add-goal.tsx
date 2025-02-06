@@ -20,13 +20,21 @@ import { useToast } from "@/hooks/use-toast";
 export default function AddGoal() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+
   const form = useForm<InsertGoal>({
-    resolver: zodResolver(insertGoalSchema),
+    resolver: zodResolver(insertGoalSchema.extend({
+      targetDate: insertGoalSchema.shape.targetDate.transform((date) => {
+        if (typeof date === 'string') {
+          return new Date(date).toISOString();
+        }
+        return date.toISOString();
+      }),
+    })),
     defaultValues: {
       title: "",
       description: "",
       category: "Personal",
-      targetDate: new Date().toISOString(),
+      targetDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD for input[type="date"]
     },
   });
 
@@ -42,7 +50,19 @@ export default function AddGoal() {
       });
       navigate("/");
     },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
+
+  const onSubmit = (data: InsertGoal) => {
+    console.log('Submitting goal:', data); // Add logging
+    mutation.mutate(data);
+  };
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -50,41 +70,68 @@ export default function AddGoal() {
         <h1 className="text-3xl font-bold mb-8">Create New Goal</h1>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-4">
-              <Input
-                {...form.register("title")}
-                placeholder="What's your goal?"
-                className="text-lg"
-              />
+              <div className="space-y-2">
+                <label htmlFor="title" className="text-sm font-medium">Goal Title</label>
+                <Input
+                  id="title"
+                  {...form.register("title")}
+                  placeholder="What's your goal?"
+                  className="text-lg"
+                />
+                {form.formState.errors.title && (
+                  <p className="text-sm text-red-500">{form.formState.errors.title.message}</p>
+                )}
+              </div>
 
-              <Textarea
-                {...form.register("description")}
-                placeholder="Describe your goal in detail..."
-                className="min-h-[100px]"
-              />
+              <div className="space-y-2">
+                <label htmlFor="description" className="text-sm font-medium">Description</label>
+                <Textarea
+                  id="description"
+                  {...form.register("description")}
+                  placeholder="Describe your goal in detail..."
+                  className="min-h-[100px]"
+                />
+                {form.formState.errors.description && (
+                  <p className="text-sm text-red-500">{form.formState.errors.description.message}</p>
+                )}
+              </div>
 
-              <Select
-                onValueChange={(value) => form.setValue("category", value)}
-                defaultValue={form.getValues("category")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {goalCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <label htmlFor="category" className="text-sm font-medium">Category</label>
+                <Select
+                  onValueChange={(value) => form.setValue("category", value)}
+                  defaultValue={form.getValues("category")}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {goalCategories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.category && (
+                  <p className="text-sm text-red-500">{form.formState.errors.category.message}</p>
+                )}
+              </div>
 
-              <Input
-                type="date"
-                {...form.register("targetDate")}
-                className="w-full"
-              />
+              <div className="space-y-2">
+                <label htmlFor="targetDate" className="text-sm font-medium">Target Date</label>
+                <Input
+                  id="targetDate"
+                  type="date"
+                  {...form.register("targetDate")}
+                  className="w-full"
+                />
+                {form.formState.errors.targetDate && (
+                  <p className="text-sm text-red-500">{form.formState.errors.targetDate.message}</p>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end gap-4">
@@ -96,7 +143,7 @@ export default function AddGoal() {
                 Cancel
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                Create Goal
+                {mutation.isPending ? "Creating..." : "Create Goal"}
               </Button>
             </div>
           </form>
